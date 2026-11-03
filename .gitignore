@@ -12,3 +12,6 @@ node_modules/
 .last-run.txt
 .t.txt
 .final.txt
+
+# 提交信息临时文件
+.commitmsg.txt
