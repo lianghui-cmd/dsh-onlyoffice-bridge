@@ -21,7 +21,7 @@ DeepSeek Harness（DSH）Cordis 插件：把 **ONLYOFFICE Document Server** 桥�
 
 ---
 
-## 目录结构
+## Contents
 
 ```
 onlyoffice-bridge/
@@ -41,7 +41,7 @@ onlyoffice-bridge/
 只依赖 DSH 必然提供的 `@deepseek-ai/cordis`；不依赖 express，也不依赖 schema 库
 （配置校验由插件自己完成，非法值回退默认值）。
 
-## 前置依赖
+## Prerequisites
 
 1. **ONLYOFFICE Document Server**（推荐 docker）：
 
@@ -68,7 +68,7 @@ onlyoffice-bridge/
    - DSH 默认只监听 `127.0.0.1`，要让 DS 容器访问到，需要让 DSH 监听局域网地址
      （webserver 的 `host` 配置，具体字段见你所用 DSH 版本的 `dsh-host-webserver` 文档）
 
-## 安装
+## Installation
 
 ```text
 DeepSeek-Harness/
@@ -94,7 +94,7 @@ DeepSeek-Harness/
 4. 验证：DSH 插件列表里应出现 **OnlyOffice Bridge**；Agent 里调用 `onlyoffice_status`，
    返回里应带 `storageDir`、`dsUrl`、`publicUrl`。
 
-## 配置
+## Configuration
 
 优先级：**进程环境变量 > 本目录 `.env` > `cordis.patch.yml` 的 `config` > 内置默认值**。
 
@@ -127,18 +127,19 @@ DeepSeek-Harness/
 
 数值字段写错（例如把 `cacheTtlHour` 写成非数字）时会回退到默认值，不会让插件加载失败。
 
-## Agent 工具（v0.4.0 共 22 个）
+## All Tools (v0.4.0, 22 total)
 
-DSH 里的工具名统一是 `onlyoffice_<name>`；下面每一行的 `<name>` 就是注册到 DSH 的那个名字。
+Tool names registered into DSH are `onlyoffice_<name>`. The table below
+grouped by capability.
 
-### 基础
+### Basic
 - `onlyoffice_open` — `filePath` / `contentBase64` / `fileKey` 三选一，返回 `editorUrl` 与 `fileKey`，保存后回写原文件
 - `onlyoffice_read-doc` — 读正文（docx / xlsx / csv；pptx 不支持正文抽取）
 - `onlyoffice_status` — 缓存文档列表 + 软锁 + 最近一次保存回调
 - `onlyoffice_export-pdf` — 转 PDF（仅 docx / xlsx / pptx）
 - `onlyoffice_purge` — `target=one|expired|all`
 
-### 第一梯队
+### Tier 1
 - `onlyoffice_write-doc` — `mode=docx` 用 Markdown 生成；`mode=xlsx` 用 JSON 二维数组或对象数组生成
 - `onlyoffice_diff` — 两个同格式文档逐行对比，返回增删行数 + 最多 50 段变更
 - `onlyoffice_rename` — 改显示名与备注（缺扩展名会自动补）
@@ -147,7 +148,7 @@ DSH 里的工具名统一是 `onlyoffice_<name>`；下面每一行的 `<name>` �
 - `onlyoffice_lock` / `onlyoffice_unlock` / `onlyoffice_who-lock` — 应用层软锁
 - `onlyoffice_batch-open` / `onlyoffice_batch-read` / `onlyoffice_batch-export-pdf` — 批量，逐项返回成功与失败原因
 
-### 第二梯队
+### Tier 2
 - `onlyoffice_export-docx` / `onlyoffice_export-xlsx` / `onlyoffice_export-pptx` / `onlyoffice_export-html` — 走 DS ConvertService 转换并下载到本地
 - `onlyoffice_template-fill` — docx 模板 `${var}` 填充，保留原样式，返回已替换 / 缺失变量
 - `onlyoffice_insert-image` — docx 末尾追加图片（仅 docx；xlsx / pptx 暂不支持）
@@ -165,7 +166,7 @@ Agent → onlyoffice_open { "filePath": "D:\\docs\\报价单.xlsx" }
 Agent → onlyoffice_status   ← 看到 lastCallback.status=2、edited=true
 ```
 
-### 编辑链接是 `api.js` 而不是 `editor.html`
+### Why the editor link is `api.js`, not `editor.html`
 
 `/web-apps/apps/api/documents/api.js?...` 是 ONLYOFFICE 官方推荐的接入方式：
 浏览器打开它时，文档服务器会返回一个已经注入好配置的完整编辑器页面。
@@ -179,7 +180,7 @@ Agent → onlyoffice_status   ← 看到 lastCallback.status=2、edited=true
 `/web-apps/apps/api/documents/editor.html` 是编辑器组件本身，**不直接接受** token 参数，
 除非自己再套一层页面去加载 `api.js`。
 
-## 缓存策略
+## Caching Strategy
 
 - 每次 `onlyoffice_open` 都会给文档分配一个**新的 key**（`<32hex>-<16hex>.<ext>`）。
   DS 用 key 缓存编辑会话，复用旧 key 会拿到过期会话，所以每次编辑都换新 key；
@@ -188,7 +189,7 @@ Agent → onlyoffice_status   ← 看到 lastCallback.status=2、edited=true
 - 超过 `CACHE_TTL_HOUR` 的缓存由定时任务清理，也可以让 Agent 调 `onlyoffice_purge`。
 - 定时器在插件卸载时清除，不会残留。
 
-## 网络与安全
+## Networking & Security
 
 - **回调验签**：`/onlyoffice/callback` 必须携带有效 JWT（请求头或 `body.token`），
   密钥不一致会返回 403 并在日志里提示（这是最常见的故障）。
@@ -199,7 +200,7 @@ Agent → onlyoffice_status   ← 看到 lastCallback.status=2、edited=true
 - **原文件回写**：只有通过 `filePath` 打过的文档会回写原文件；回写失败会在日志里保留
   缓存路径，内容不会丢。
 
-### 常见故障
+## Common Failures
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
@@ -211,14 +212,16 @@ Agent → onlyoffice_status   ← 看到 lastCallback.status=2、edited=true
 | 端口/地址没生效 | DSH 桌面端不会自动读取 `.env` | 把变量注入 DSH 进程环境，或用 `cordis.patch.yml` 的 `config` |
 | 工具报“缺少可选依赖 docx / mammoth / xlsx” | 插件目录没装依赖（重装 bundle 可能清空 `node_modules`） | 在插件目录执行 `npm install` 或 `pnpm install`，然后重载插件 |
 
-## 开发与测试
+## Development & Testing
 
 ```bash
-# 36 条用例：JWT 签名/验签、路径穿越、保存回调（status 2/6）、上传、导出、软锁、
-# 批量、模板填充 / 插图参数校验、缓存清理、22 个工具注册
+# 36 cases: JWT sign/verify, path traversal, save callback (status 2/6),
+# upload, export, soft lock, batch, template-fill / insert-image arg checks,
+# cache cleanup, and registration of 22 tools
 npm test
 
-# 独立运行测试所需的两个运行时替身：@deepseek-ai/cordis 与文档依赖
+# Runtime shims needed to run the tests standalone:
+# @deepseek-ai/cordis and the document dependencies
 npm install
 ```
 
@@ -227,7 +230,7 @@ npm install
 文档依赖（docx / mammoth / xlsx / diff / marked / jszip）是**懒加载**的：缺包时只有用到它们的工具报错，
 不影响插件启动与其他工具。
 
-## 安装注意（重要）
+## Installation Notes (important)
 
 `plugin_manager` 重装 bundle 会清理 profile 依赖，**插件目录的 `node_modules` 也可能被清**。
 因此本插件把文档处理依赖**内置进仓库**（`vendor/`），不依赖任何外部安装：
@@ -254,17 +257,18 @@ vendor/            # 38 个运行时包，约 14 MB，随 git 一起提交
 `vendor/` 内的包互相 `require` 兄弟包时，由 `lib/vendor-resolver.js` 补齐查找路径
 （Node 默认不会从 `vendor/mammoth` 找到 `vendor/underscore`）。
 
-## 开发与测试
+## Development & Testing
 
 ```bash
-# 36 条用例：JWT、路径穿越、保存回调（status 2/6）、上传、导出、软锁、批量、
-# 模板填充 / 插图参数校验、缓存清理、22 个工具注册
+# 36 cases: JWT sign/verify, path traversal, save callback (status 2/6),
+# upload, export, soft lock, batch, template-fill / insert-image arg checks,
+# cache cleanup, and registration of 22 tools
 npm test
 
-# 重新生成内置依赖副本（升级依赖后执行）
+# Regenerate the vendored dependency copies (run after upgrading deps)
 npm run vendor
 
-# 只看体积，不落盘
+# Preview vendor size without writing anything
 npm run vendor:check
 ```
 
@@ -276,15 +280,16 @@ npm run vendor:check
 
 MIT
 
-## 第三方许可
+## Third-party Licenses
 
 `vendor/` 内各包均为 MIT 等宽松许可，原始版本与许可证文件已随包保留，
 汇总见 `vendor/MANIFEST.json`。
 
-## 相关链接
+## Links
 
-- 仓库：<https://github.com/lianghui-cmd/dsh-onlyoffice-bridge>
-- 问题与建议：<https://github.com/lianghui-cmd/dsh-onlyoffice-bridge/issues>
-- ONLYOFFICE Document Server：<https://github.com/ONLYOFFICE/DocumentServer>
+- Repository: <https://github.com/lianghui-cmd/dsh-onlyoffice-bridge>
+- Issues & feature requests: <https://github.com/lianghui-cmd/dsh-onlyoffice-bridge/issues>
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- ONLYOFFICE Document Server: <https://github.com/ONLYOFFICE/DocumentServer>
 
 如果这个插件帮你把 Office 文档接进了 Agent，欢迎点个 ⭐ Star。
