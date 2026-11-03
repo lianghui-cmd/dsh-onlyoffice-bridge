@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="OnlyOffice Bridge">
+  <defs>
+    <linearGradient id="sheet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2E7CE4"/>
+      <stop offset="1" stop-color="#1A4FA8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="4" width="48" height="56" rx="8" fill="url(#sheet)"/>
+  <path d="M20 20h24a2 2 0 0 1 2 2v6H18v-6a2 2 0 0 1 2-2Z" fill="#FFFFFF" opacity="0.92"/>
+  <rect x="18" y="33" width="28" height="3.5" rx="1.75" fill="#FFFFFF" opacity="0.75"/>
+  <rect x="18" y="40" width="28" height="3.5" rx="1.75" fill="#FFFFFF" opacity="0.75"/>
+  <rect x="18" y="47" width="17" height="3.5" rx="1.75" fill="#FFFFFF" opacity="0.75"/>
+  <circle cx="47" cy="47" r="9" fill="#FF7A1A"/>
+  <path d="M43 47.2l3 3 5-6" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

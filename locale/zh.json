@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "OnlyOffice Bridge",
+    "description": "把 ONLYOFFICE Document Server 桥接给 Agent：打开、编辑、导出 docx / xlsx / pptx。"
+  }
+}

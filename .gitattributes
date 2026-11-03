@@ -1,0 +1,20 @@
+# 统一换行，避免 Windows 检出后差异爆炸
+* text=auto eol=lf
+
+# 第三方内置副本：原样保留，不让 git 改写内容
+vendor/** -text
+vendor/**/*.png binary
+vendor/**/*.jpg binary
+vendor/**/*.gif binary
+
+# 脚本与配置强制 LF
+*.sh text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+
+# Windows 批处理必须是 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf

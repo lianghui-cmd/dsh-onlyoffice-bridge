@@ -1,0 +1,6 @@
+# ONLYOFFICE Bridge —— DSH 加载补丁。
+# package.json 的 dsh.bundle.patch 指向本文件，安装 bundle 时把它插入当前 profile。
+# 手工维护 profile 的 cordis.patch.yml 时，复制下面 insert 的内容即可。
+- insert:
+    - id: onlyoffice-bridge
+      name: 'dsh-onlyoffice-bridge'

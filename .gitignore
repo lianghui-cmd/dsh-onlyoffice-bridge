@@ -1,0 +1,14 @@
+# 依赖：用 vendor/ 内置副本，不需要提交 node_modules
+node_modules/
+.npm-deps.json
+
+# 注意：vendor/ 必须提交，它是插件自包含的运行时依赖，不要忽略
+
+# 本地配置（从 .env.example 复制而来），可能含密钥
+.env
+
+# 测试/调试临时产物
+.node_modules.hidden/
+.last-run.txt
+.t.txt
+.final.txt
