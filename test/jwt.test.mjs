@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
+import path from 'node:path'
 import test from 'node:test'
 import { authHeaders, parseFileKey, readEnvConfig, resolveConfig, signJwt, verifyJwt } from '../index.js'
 
@@ -43,8 +44,10 @@ test('parseFileKey 只接受 <32hex>-<16hex>.<ext>', () => {
 })
 
 test('readEnvConfig 读取环境变量并做地址归一化', () => {
+  // 用 path.join 生成期望值，保证在 Windows / Linux 上都能通过
+  const cwd = path.join(path.sep, 'tmp', 'dsh')
   const config = readEnvConfig({
-    cwd: 'C:\\dsh',
+    cwd,
     dotenv: {
       ONLYOFFICE_DS_URL: 'office.local:8080/',
       ONLYOFFICE_SECRETS: 'legacy-secret',
@@ -60,7 +63,7 @@ test('readEnvConfig 读取环境变量并做地址归一化', () => {
   assert.equal(config.jwtSecret, 'legacy-secret')
   assert.equal(config.jwtHeader, 'X-Open')
   assert.equal(config.publicUrl, 'http://192.168.1.20:11006')
-  assert.equal(config.storageDir, 'C:\\dsh\\cache')
+  assert.equal(config.storageDir, path.resolve(cwd, './cache'))
   assert.equal(config.cacheTtlHour, 6)
   assert.equal(config.maxFileMb, 32)
   assert.deepEqual(config.allowedOrigins, ['https://a.example', 'https://b.example'])
