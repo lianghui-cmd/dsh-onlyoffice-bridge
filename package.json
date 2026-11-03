@@ -82,7 +82,8 @@
     "typescript": "5.9.3"
   },
   "scripts": {
-    "test": "node --import ./test/register.mjs test/all.mjs",
+    "test": "node --import ./test/register.mjs test/all.mjs && node test/validate-patch.test.mjs",
+    "test:patch": "node test/validate-patch.test.mjs",
     "vendor": "node scripts/vendor-deps.mjs",
     "vendor:check": "node scripts/vendor-deps.mjs --dry-run",
     "typecheck": "tsc -p tsconfig.json"

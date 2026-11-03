@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 插件自带 vendor/，这里故意不执行 npm install：
+      # 测试必须能在「没有任何 node_modules」的环境跑通。
+      - name: Ensure no node_modules is present
+        shell: bash
+        run: |
+          if [ -d node_modules ]; then
+            echo "::error::node_modules 存在，测试会失去意义"
+            exit 1
+          fi
+
+      - name: Run tests (no dependencies installed)
+        run: npm test
+
+      - name: Verify vendored dependency integrity
+        shell: bash
+        run: |
+          missing=0
+          for pkg in docx jszip mammoth xlsx diff marked; do
+            if [ ! -f "vendor/$pkg/package.json" ]; then
+              echo "::error::vendor/$pkg 缺失"
+              missing=1
+            fi
+          done
+          [ -f vendor/MANIFEST.json ] || { echo "::error::vendor/MANIFEST.json 缺失"; missing=1; }
+          exit $missing
+
+      - name: Validate bundle patch
+        run: node scripts/validate-patch.mjs
