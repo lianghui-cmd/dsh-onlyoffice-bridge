@@ -1,16 +1,23 @@
 # dsh-onlyoffice-bridge
 
+[![CI](https://github.com/lianghui-cmd/dsh-onlyoffice-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/lianghui-cmd/dsh-onlyoffice-bridge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.19-brightgreen)](https://nodejs.org)
+
 DeepSeek Harness（DSH）Cordis 插件：把 **ONLYOFFICE Document Server** 桥接给 Agent，
-让 Agent 能打开、人工在线编辑、再自动回写 docx / xlsx / pptx 文件，并能导出 PDF。
+让 Agent 能打开、人工在线编辑、再自动回写 docx / xlsx / pptx 文件，并能生成、转换、
+对比、锁定 Office 文档。
 
 > 模式：桥接模式。DSH 生成编辑链接 → 浏览器打开 ONLYOFFICE 编辑器 → 保存回调把内容写回
 > DSH 缓存目录**和原始文件**。不内嵌 iframe，跨域最稳。
 
+- **22 个 Agent 工具**：打开 / 读取 / 生成 / 转换 / 对比 / 软锁 / 批量 / 模板填充 / 插图
 - 纯 Node 实现：`node:http` / `node:crypto` / `node:fs`，**不依赖 express**
-- 4 个 Agent 工具：`onlyoffice_open` / `onlyoffice_status` / `onlyoffice_export_pdf` / `onlyoffice_purge`
+- **依赖内置**：`vendor/` 打包了文档处理依赖，重装插件不会掉依赖，离线可用
 - JWT（HS256）签名 + 回调验签，兼容 `Authorization` 头 / `body.token` / 旧版 md5 token
 - 缓存 TTL 自动清理（随插件卸载停止，不残留定时器）
 - 配置既可以来自环境变量 / `.env`，也可以来自 `cordis.patch.yml` 的 `config`
+- **36 条自动化用例 + 10 条配置校验用例**，CI 在 Node 22/24 × Linux/Windows 全绿
 
 ---
 
@@ -273,3 +280,11 @@ MIT
 
 `vendor/` 内各包均为 MIT 等宽松许可，原始版本与许可证文件已随包保留，
 汇总见 `vendor/MANIFEST.json`。
+
+## 相关链接
+
+- 仓库：<https://github.com/lianghui-cmd/dsh-onlyoffice-bridge>
+- 问题与建议：<https://github.com/lianghui-cmd/dsh-onlyoffice-bridge/issues>
+- ONLYOFFICE Document Server：<https://github.com/ONLYOFFICE/DocumentServer>
+
+如果这个插件帮你把 Office 文档接进了 Agent，欢迎点个 ⭐ Star。
