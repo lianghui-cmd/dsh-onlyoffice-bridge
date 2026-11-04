@@ -68,6 +68,29 @@ test('snapshot / snapshot-list / restore-snapshot：完整版本流转', async (
   void s2
 })
 
+test('snapshot-list 顺序稳定：同一毫秒内连续创建、索引乱序都不影响', async (t) => {
+  const env = await setup()
+  t.after(() => env.ctx.dispose())
+  const key = seed(env, 'order.docx', 'v')
+  const labels = ['A', 'B', 'C', 'D', 'E']
+  for (const label of labels) {
+    fs.writeFileSync(path.join(env.storageDir, key), `content-${label}`)
+    await env.call('snapshot', { fileKey: key, label })
+  }
+
+  // 场景 1：正常顺序
+  const normal = (await env.call('snapshot-list', { fileKey: key })).snapshots.map((s) => s.label)
+  assert.deepEqual(normal, labels)
+
+  // 场景 2：把索引数组人为倒序，list 仍必须按创建序返回（顺序由 order 决定，不靠运气）
+  const indexPath = path.join(env.storageDir, 'snapshots', 'index.json')
+  const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'))
+  index[key] = index[key].slice().reverse()
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2))
+  const shuffled = (await env.call('snapshot-list', { fileKey: key })).snapshots.map((s) => s.label)
+  assert.deepEqual(shuffled, labels)
+})
+
 test('snapshot：fileKey 不存在 / 快照不存在时给出可读错误', async (t) => {
   const env = await setup()
   t.after(() => env.ctx.dispose())

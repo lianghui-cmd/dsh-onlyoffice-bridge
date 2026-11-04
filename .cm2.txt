@@ -1,0 +1,17 @@
+fix(version): order snapshots by explicit sequence, not timestamps
+
+snapshot-list could return entries out of creation order. Two causes:
+
+1. createTime called new Date() a second time after snapId was built
+   from an earlier Date, so a millisecond boundary could make the two
+   disagree.
+2. Ordering relied on timestamps at all, which cannot distinguish two
+   snapshots created inside the same millisecond.
+
+The index now stores a monotonically increasing integer `order`
+(max existing + 1). Sorting uses it first and only falls back to
+createTime/snapId for indexes written by older versions.
+
+A stress run of 100 rounds (5 snapshots per round, plus a deliberately
+reversed index) now passes, and the scenario is captured as a regular
+test case instead of an ad-hoc script.
