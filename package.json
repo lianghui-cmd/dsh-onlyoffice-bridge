@@ -1,7 +1,7 @@
 {
   "name": "dsh-onlyoffice-bridge",
-  "version": "0.4.0",
-  "description": "DeepSeek Harness bridge plugin for ONLYOFFICE Document Server | 打开/编辑/生成/转换/对比/锁/批量 共 22 个 Agent 工具（文档依赖内置，重装不掉依赖）",
+  "version": "0.5.0",
+  "description": "DeepSeek Harness bridge plugin for ONLYOFFICE Document Server | 打开/编辑/生成/转换/对比/锁/批量/排版/合并拆分/版本快照 共 29 个 Agent 工具（文档依赖内置，重装不掉依赖）",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",

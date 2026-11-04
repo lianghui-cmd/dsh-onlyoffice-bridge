@@ -11,13 +11,14 @@ DeepSeek Harness（DSH）Cordis 插件：把 **ONLYOFFICE Document Server** 桥�
 > 模式：桥接模式。DSH 生成编辑链接 → 浏览器打开 ONLYOFFICE 编辑器 → 保存回调把内容写回
 > DSH 缓存目录**和原始文件**。不内嵌 iframe，跨域最稳。
 
-- **22 个 Agent 工具**：打开 / 读取 / 生成 / 转换 / 对比 / 软锁 / 批量 / 模板填充 / 插图
+- **29 个 Agent 工具**：打开 / 读取 / 生成 / 转换 / 对比 / 软锁 / 批量 / 模板填充 / 插图 /
+  排版（目录·页眉页脚）/ 合并拆分 / 版本快照
 - 纯 Node 实现：`node:http` / `node:crypto` / `node:fs`，**不依赖 express**
 - **依赖内置**：`vendor/` 打包了文档处理依赖，重装插件不会掉依赖，离线可用
 - JWT（HS256）签名 + 回调验签，兼容 `Authorization` 头 / `body.token` / 旧版 md5 token
 - 缓存 TTL 自动清理（随插件卸载停止，不残留定时器）
 - 配置既可以来自环境变量 / `.env`，也可以来自 `cordis.patch.yml` 的 `config`
-- **36 条自动化用例 + 10 条配置校验用例**，CI 在 Node 22/24 × Linux/Windows 全绿
+- **44 条自动化用例 + 10 条配置校验用例**，CI 在 Node 22/24 × Linux/Windows 全绿
 
 ---
 
@@ -127,7 +128,7 @@ DeepSeek-Harness/
 
 数值字段写错（例如把 `cacheTtlHour` 写成非数字）时会回退到默认值，不会让插件加载失败。
 
-## All Tools (v0.4.0, 22 total)
+## All Tools (v0.5.0, 29 total)
 
 Tool names registered into DSH are `onlyoffice_<name>`. The table below
 grouped by capability.
@@ -153,7 +154,30 @@ grouped by capability.
 - `onlyoffice_template-fill` — docx 模板 `${var}` 填充，保留原样式，返回已替换 / 缺失变量
 - `onlyoffice_insert-image` — docx 末尾追加图片（仅 docx；xlsx / pptx 暂不支持）
 
-> 早期设计稿把 `template-fill`、`insert-image` 既算进梯队又单列，合计 25；实际注册数是上表的 **22 个**，以本表为准。
+> 早期设计稿把 `template-fill`、`insert-image` 既算进梯队又单列，合计 25；加上 v0.5.0 的
+> 7 个新工具后，实际注册数是 **29 个**，以本表为准。
+
+### Typesetting（v0.5.0）
+
+- `onlyoffice_toc-regen` — 刷新 Word 目录（TOC 域）；文档没有目录时在正文开头插入一个。
+  刷新后由编辑器按标题样式重算条目与页码。PPT 则刷新页码占位符
+- `onlyoffice_header-footer-set` — 设置页眉、页脚、自动页码、版本号；支持多节独立与首页独立（仅 docx）
+
+### Structure（v0.5.0）
+
+- `onlyoffice_merge-doc` — 按顺序合并多个 docx / pptx，保留分节、页眉页脚、图片；
+  合并 pptx 时连版式、母版、主题一起搬运
+- `onlyoffice_split-doc` — `section` 按分节符拆 Word（只有一个分节时按段落均分）；
+  `slide` 按页拆 PPT
+
+### Version（v0.5.0）
+
+- `onlyoffice_snapshot` — 给文档打不可变版本快照，可带标签（如「初稿」「合同审核版」）
+- `onlyoffice_snapshot-list` — 列出全部历史快照，拿到 `snapId`
+- `onlyoffice_restore-snapshot` — 回滚到指定快照；**回滚前自动备份当前版本**，返回 `backupSnapId`
+
+> 版本快照存放在缓存目录的 `snapshots/<fileKey>/` 下，随缓存 TTL 一起清理；
+> 删除文档（`purge`）时其快照目录也会一并删除，不留孤儿文件。
 
 典型对话：
 
@@ -188,6 +212,32 @@ Agent → onlyoffice_status   ← 看到 lastCallback.status=2、edited=true
 - 缓存目录里每个文档有 `<key>.<ext>` 与 `<key>.meta.json`（文件名、原文件路径、导出目标等）。
 - 超过 `CACHE_TTL_HOUR` 的缓存由定时任务清理，也可以让 Agent 调 `onlyoffice_purge`。
 - 定时器在插件卸载时清除，不会残留。
+- 版本快照存放在 `snapshots/<fileKey>/`，随 TTL 一起清理；`purge` 会连带删除该文档的快照目录。
+
+## HTTP Routes
+
+除了 DS 需要的三条（静态文件 / 保存回调 / 上传）和健康检查，v0.5.0 还开放了与
+Agent 工具**同一份实现**的操作接口，方便前端或脚本直接调用：
+
+| 路由 | Method | 对应工具 |
+| --- | --- | --- |
+| `/onlyoffice/toc` | POST | `toc-regen` |
+| `/onlyoffice/header-footer` | POST | `header-footer-set` |
+| `/onlyoffice/merge` | POST | `merge-doc` |
+| `/onlyoffice/split` | POST | `split-doc` |
+| `/onlyoffice/snapshot` | POST | `snapshot` |
+| `/onlyoffice/restore` | POST | `restore-snapshot` |
+| `/onlyoffice/snapshot-list` | GET | `snapshot-list`（query 传 `fileKey`） |
+
+POST 的 body 就是工具参数（JSON），返回结构与工具返回值一致：
+
+```bash
+curl -X POST http://127.0.0.1:11006/onlyoffice/snapshot \
+  -H 'Content-Type: application/json' \
+  -d '{"fileKey":"<key>.docx","label":"审核前"}'
+```
+
+这些接口与 Agent 工具共享 `lib/tools.js` 的实现，因此行为、错误信息、软锁规则完全一致。
 
 ## Networking & Security
 
@@ -274,7 +324,7 @@ npm run vendor:check
 
 测试在单进程里加载全部 `*.test.mjs`，并用 `test/shims/cordis.mjs` + `test/resolve.mjs`
 把 `@deepseek-ai/cordis` 换成轻量替身，因此不需要安装 DSH 本体。
-**把 `node_modules` 整个删掉后，36 条用例依然全部通过**——这就是内置依赖的意义。
+**把 `node_modules` 整个删掉后，44 条用例依然全部通过**——这就是内置依赖的意义。
 
 ## License
 

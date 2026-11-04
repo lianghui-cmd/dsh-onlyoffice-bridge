@@ -30,6 +30,7 @@ import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import { TOOL_DEFINITIONS } from './lib/definitions.js'
 import { createToolkit } from './lib/tools.js'
+import { cleanExpiredSnapshots, purgeSnapshots } from './lib/snapshots.js'
 
 /** @typedef {import('@deepseek-ai/cordis').Context} Context */
 /** @typedef {import('node:http').IncomingMessage} IncomingMessage */
@@ -539,6 +540,42 @@ export class OnlyOfficeBridge extends Service {
         kind: 'exact',
         path: HEALTH_PATH,
         handler: (req, res) => this.handleHealth(req, res),
+      }),
+      // 排版 / 结构 / 版本类操作（与 Agent 工具同源，方便前端或脚本直接调）
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/toc`,
+        handler: (req, res) => this.handleOp(req, res, 'toc-regen'),
+      }),
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/header-footer`,
+        handler: (req, res) => this.handleOp(req, res, 'header-footer-set'),
+      }),
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/merge`,
+        handler: (req, res) => this.handleOp(req, res, 'merge-doc'),
+      }),
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/split`,
+        handler: (req, res) => this.handleOp(req, res, 'split-doc'),
+      }),
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/snapshot`,
+        handler: (req, res) => this.handleOp(req, res, 'snapshot'),
+      }),
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/restore`,
+        handler: (req, res) => this.handleOp(req, res, 'restore-snapshot'),
+      }),
+      this.ctx.webServer.register({
+        kind: 'exact',
+        path: `${ROUTE_PREFIX}/snapshot-list`,
+        handler: (req, res) => this.handleSnapshotList(req, res),
       }),
     ]
     this.ctx.logger.info('[onlyoffice] 已挂载路由 %s', ROUTE_PREFIX)
@@ -1059,7 +1096,16 @@ export class OnlyOfficeBridge extends Service {
           this.ctx.logger.warn('[onlyoffice] 清理文件失败 %s: %s', file, error instanceof Error ? error.message : String(error))
         }
       }
+      // 文档本体被清理时，连同它的历史快照一起清掉，避免孤儿快照长期占空间
+      for (const file of group) {
+        if (FILE_KEY_EXT.test(file.slice(file.lastIndexOf('.') + 1))) {
+          purgeSnapshots(this.storageDir, file)
+        }
+      }
     }
+    // 单独清理过期快照（文档还在、但快照超过 TTL 的情况）
+    const expiredSnapshots = cleanExpiredSnapshots(this.storageDir, ttlHours * 60 * 60 * 1000)
+    removed.push(...expiredSnapshots)
     return removed
   }
 
@@ -1122,6 +1168,8 @@ export class OnlyOfficeBridge extends Service {
         removed.push(path.basename(candidate))
       }
     }
+    // 连带清理该文档的历史快照，避免孤儿目录长期占用空间
+    purgeSnapshots(this.storageDir, fileKey)
     return { ok: removed.length > 0, removed, fileKey }
   }
 
@@ -1303,12 +1351,70 @@ export class OnlyOfficeBridge extends Service {
     })
   }
 
+  /**
+   * 通用操作路由：把 POST body 直接交给同名工具处理器执行。
+   *
+   * 这样「Agent 工具」与「HTTP 接口」是同一份实现（lib/tools.js），
+   * 不会出现两边行为不一致。POST body 里放工具参数即可。
+   * @param {IncomingMessage} req
+   * @param {ServerResponse} res
+   * @param {string} toolName 工具 key（如 toc-regen）
+   */
+  async handleOp(req, res, toolName) {
+    if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' })
+    if (!isTrustedRequest(req, this.config, true)) return send(res, 403, { error: 'untrusted origin' })
+    let body
+    try {
+      body = await readBody(req, 2 * 1024 * 1024)
+    } catch (error) {
+      return send(res, 413, { error: error instanceof Error ? error.message : String(error) })
+    }
+    /** @type {Record<string, unknown>} */
+    let args = {}
+    try {
+      args = body.length ? JSON.parse(body.toString('utf8')) : {}
+    } catch {
+      return send(res, 400, { error: 'invalid json' })
+    }
+    const handler = this.toolkit?.handlers?.[toolName]
+    if (typeof handler !== 'function') return send(res, 404, { error: `工具未注册：${toolName}` })
+    try {
+      const result = await handler(args)
+      return send(res, 200, result)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.ctx.logger.warn('[onlyoffice] %s 失败：%s', toolName, message)
+      return send(res, 400, { ok: false, error: message })
+    }
+  }
+
+  /**
+   * 快照列表路由（GET，query 里带 fileKey）。
+   * @param {IncomingMessage} req
+   * @param {ServerResponse} res
+   */
+  async handleSnapshotList(req, res) {
+    if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' })
+    const url = new URL(req.url ?? '/', 'http://localhost')
+    const fileKey = url.searchParams.get('fileKey') ?? ''
+    if (!fileKey) return send(res, 400, { error: 'fileKey 不能为空' })
+    const handler = this.toolkit?.handlers?.['snapshot-list']
+    if (typeof handler !== 'function') return send(res, 404, { error: '工具未注册：snapshot-list' })
+    try {
+      return send(res, 200, await handler({ fileKey }))
+    } catch (error) {
+      return send(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
   // -- Agent 工具 ---------------------------------------------------------
 
   registerTools() {
     // 重复调用时先注销旧注册，避免同一服务出现两份工具。
     this.unregisterTools()
     const toolkit = createToolkit(this, { logger: this.ctx.logger })
+    // 供 HTTP 路由复用同一份实现（保证 Agent 工具与 HTTP 接口行为一致）
+    this.toolkit = toolkit
     const disposers = []
     this.toolDisposers.push(disposers)
 

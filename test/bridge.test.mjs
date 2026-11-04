@@ -325,7 +325,7 @@ test('status 工具列出缓存文档与最近回调', async (t) => {
   assert.match(content[0].text, /listed\.pptx/)
 })
 
-test('注册了完整工具清单（25 个），命名与参数结构符合 DSH 规范', async (t) => {
+test('注册了完整工具清单（29 个），命名与参数结构符合 DSH 规范', async (t) => {
   const env = await setup()
   t.after(async () => {
     await env.server.close()
@@ -343,15 +343,22 @@ test('注册了完整工具清单（25 个），命名与参数结构符合 DSH 
     'onlyoffice_export-pdf',
     'onlyoffice_export-pptx',
     'onlyoffice_export-xlsx',
+    'onlyoffice_header-footer-set',
     'onlyoffice_insert-image',
     'onlyoffice_lock',
+    'onlyoffice_merge-doc',
     'onlyoffice_meta',
     'onlyoffice_open',
     'onlyoffice_purge',
     'onlyoffice_read-doc',
     'onlyoffice_rename',
+    'onlyoffice_restore-snapshot',
+    'onlyoffice_snapshot',
+    'onlyoffice_snapshot-list',
+    'onlyoffice_split-doc',
     'onlyoffice_status',
     'onlyoffice_template-fill',
+    'onlyoffice_toc-regen',
     'onlyoffice_unlock',
     'onlyoffice_who-lock',
     'onlyoffice_write-doc',
@@ -385,21 +392,21 @@ test('卸载时释放路由、工具与定时器', async (t) => {
   t.after(async () => {
     await env.server.close()
   })
-  assert.equal(new Set(env.routes.map((route) => route.path)).size, 4)
-  assert.equal(env.ctx.tools.size, 22)
+  assert.equal(new Set(env.routes.map((route) => route.path)).size, 11)
+  assert.equal(env.ctx.tools.size, 29)
   env.bridge.unregisterTools()
   assert.equal(env.ctx.tools.size, 0)
   env.bridge.registerTools()
-  assert.equal(env.ctx.tools.size, 22)
+  assert.equal(env.ctx.tools.size, 29)
   const disposeRoutes = env.ctx.routes.splice(0).length
-  assert.equal(disposeRoutes, 4)
+  assert.equal(disposeRoutes, 11)
   // 重复注册不会产生重复工具，也不会换掉已有的注册
   const before = [...env.ctx.tools.keys()].sort()
   env.bridge.registerTools()
   env.bridge.registerTools()
   assert.deepEqual([...env.ctx.tools.keys()].sort(), before)
   const toolDisposers = env.bridge.toolDisposers.flat().slice()
-  assert.equal(toolDisposers.length, 22)
+  assert.equal(toolDisposers.length, 29)
   for (const dispose of toolDisposers) dispose()
   assert.equal(env.ctx.tools.size, 0)
   await env.ctx.dispose()
