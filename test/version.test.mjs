@@ -45,7 +45,8 @@ test('snapshot / snapshot-list / restore-snapshot：完整版本流转', async (
 
   const s1 = await env.call('snapshot', { fileKey: key, label: '初稿' })
   assert.equal(s1.ok, true)
-  assert.match(s1.snapId, /^\d{14}-[0-9a-f]{8}$/)
+  // snapId = 毫秒时间戳(17位) + 同毫秒自增序号(3位) + 随机串
+  assert.match(s1.snapId, /^\d{17}\d{3}-[0-9a-f]{6}$/)
   assert.equal(s1.label, '初稿')
 
   fs.writeFileSync(path.join(env.storageDir, key), 'v2')
